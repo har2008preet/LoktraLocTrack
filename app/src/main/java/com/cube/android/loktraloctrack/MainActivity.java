@@ -72,12 +72,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        setSwipeBar();
-
         buildGoogleApiClient();
 
-        createLocationRequest();
         initilizeMap();
+        setSwipeBar();
+
+
 
     }
 
@@ -120,7 +120,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onStart() {
         super.onStart();
+        /*Toast.makeText(this, "onStart Called", Toast.LENGTH_SHORT).show();
+        buildGoogleApiClient();
         mGoogleApiClient.connect();
+        if (mGoogleApiClient.isConnected()){
+            Toast.makeText(this, "API Connected", Toast.LENGTH_SHORT).show();
+        }*/
     }
 
     @Override
@@ -132,7 +137,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onResume() {
         super.onResume();
-        initilizeMap();
+        /*initilizeMap();*/
         mGoogleApiClient.connect();
     }
 
@@ -152,17 +157,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
     protected void createLocationRequest() {
         mLocationRequest = new LocationRequest();
-
-
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-    }
-
-    protected void createLocationRequestInterval() {
-        mLocationRequest = new LocationRequest();
-
-        mLocationRequest.setInterval(6000);
-        mLocationRequest.setFastestInterval(1000);
-
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
     }
 
@@ -172,14 +166,18 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .addOnConnectionFailedListener(this)
                 .addApi(LocationServices.API)
                 .build();
+
+        createLocationRequest();
+
     }
 
     @Override
     public void onLocationChanged(Location location) {
-        mLastLocation = location;
+        mLastLocation = LocationServices.FusedLocationApi
+                .getLastLocation(mGoogleApiClient);;
         mLastUpdateTime = DateFormat.getTimeInstance().format(new Date());
 
-        Toast.makeText(this, "Location changed", Toast.LENGTH_SHORT).show();
+        //Toast.makeText(this, "Location changed", Toast.LENGTH_SHORT).show();
         Log.wtf(TAG, "Location changed");
         LatLng currentLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
         //addMarker(currentLatLng);
@@ -199,7 +197,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     public void onConnected(Bundle bundle) {
-
             LocationServices.FusedLocationApi.requestLocationUpdates(
                     mGoogleApiClient, mLocationRequest, this);
 
@@ -268,8 +265,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void startSHIFT() {
-        createLocationRequestInterval();
-        onLocationChanged(mLastLocation);
+        mLastLocation = LocationServices.FusedLocationApi
+                .getLastLocation(mGoogleApiClient);
+        LatLng currentLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+        addMarker(currentLatLng);
+
+        /*while(isShift) {
+            createLocationRequestInterval();
+        }*/
+
     }
 }
 
