@@ -2,7 +2,7 @@ package com.cube.android.loktraloctrack;
 
 import android.Manifest;
 import android.content.Context;
-import android.location.Criteria;
+import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
@@ -28,6 +28,7 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PolylineOptions;
 
 import java.text.DateFormat;
 import java.util.ArrayList;
@@ -42,25 +43,24 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener, SeekBar.OnSeekBarChangeListener {
 
-    GoogleMap mGoogleMap;
-    private SupportMapFragment googleMap;
     private static final int MY_PERMISSIONS_LOCATION = 100;
     private static final int REQUEST_PERMISSION_SETTING = 101;
-    private boolean sentToSettings = false;
-    private boolean isConnected;
     private static final String TAG = "LocationActivity";
+    GoogleMap mGoogleMap;
     String mLastUpdateTime;
     LocationRequest mLocationRequest;
     GoogleApiClient mGoogleApiClient;
     Location mLastLocation;
     Marker mCurrLocationMarker;
-    private ArrayList<Location> locations = new ArrayList<>();
-
-    private boolean isShift;
     FrameLayout frame;
     LayoutInflater li;
     FrameLayout.LayoutParams params;
     LocationManager locationManager;
+    private SupportMapFragment googleMap;
+    private boolean sentToSettings = false;
+    private boolean isConnected;
+    private ArrayList<Location> locations = new ArrayList<>();
+    private boolean isShift;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -174,15 +174,24 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     public void onLocationChanged(Location location) {
+        Location lastLocation;
+        LatLng previosLatLng = null;
+        if (isShift) {
+            lastLocation = mLastLocation;
+            previosLatLng = new LatLng(lastLocation.getLatitude(), lastLocation.getLongitude());
+        }
         mLastLocation = LocationServices.FusedLocationApi
                 .getLastLocation(mGoogleApiClient);
         mLastUpdateTime = DateFormat.getTimeInstance().format(new Date());
 
         //Toast.makeText(this, "Location changed", Toast.LENGTH_SHORT).show();
         Log.wtf(TAG, "Location changed");
+
         LatLng currentLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
         if (isShift){
-            addMarker(currentLatLng);
+            mGoogleMap.addPolyline((new PolylineOptions())
+                    .add(currentLatLng, previosLatLng).width(5).color(Color.BLUE)
+                    .geodesic(true));
         }
         //addMarker(currentLatLng);
 
