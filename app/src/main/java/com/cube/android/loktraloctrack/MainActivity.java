@@ -13,6 +13,7 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.Toast;
 
@@ -56,10 +57,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     LayoutInflater li;
     FrameLayout.LayoutParams params;
     LocationManager locationManager;
+    private ProgressBar progress;
     private SupportMapFragment googleMap;
     private boolean sentToSettings = false;
     private boolean isConnected;
-    private ArrayList<Location> locations = new ArrayList<>();
+    private ArrayList<LatLng> locations = new ArrayList<>();
     private boolean isShift;
 
     @Override
@@ -67,6 +69,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        progress = (ProgressBar) findViewById(R.id.progressBar1);
         buildGoogleApiClient();
 
         initilizeMap();
@@ -115,12 +118,44 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onStart() {
         super.onStart();
-        /*Toast.makeText(this, "onStart Called", Toast.LENGTH_SHORT).show();
-        buildGoogleApiClient();
-        mGoogleApiClient.connect();
-        if (mGoogleApiClient.isConnected()){
-            Toast.makeText(this, "API Connected", Toast.LENGTH_SHORT).show();
-        }*/
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        locations.add(new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()));
+        Toast.makeText(this, "onPause() called", Toast.LENGTH_SHORT).show();
+        android.location.LocationListener locationListener = getLocationListener();
+
+        LocationManager locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+    }
+
+    @NonNull
+    private android.location.LocationListener getLocationListener() {
+        return new android.location.LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+                LatLng newLatlng = new LatLng(location.getLatitude(), location.getLongitude());
+                locations.add(newLatlng);
+            }
+
+            @Override
+            public void onStatusChanged(String provider, int status, Bundle extras) {
+
+            }
+
+            @Override
+            public void onProviderEnabled(String provider) {
+
+            }
+
+            @Override
+            public void onProviderDisabled(String provider) {
+
+            }
+        };
     }
 
     @Override
@@ -136,7 +171,18 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         /*initilizeMap();*/
         mGoogleApiClient.connect();
 
+        if (!locations.isEmpty()) {
+            int pos = locations.size();
+            for (int i = 1; i < pos; i++) {
+                mGoogleMap.addPolyline((new PolylineOptions())
+                        .add(locations.get(i - 1), locations.get(i)).width(15).color(Color.BLUE)
+                        .geodesic(true));
+            }
+            locations.clear();
+        }
+
     }
+
 
     @Override
     public void onMapReady(GoogleMap map) {
@@ -149,7 +195,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         map.setMapType(GoogleMap.MAP_TYPE_HYBRID);
         map.setMyLocationEnabled(true);
 
-        LocationManager locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
     }
 
@@ -190,7 +236,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         LatLng currentLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
         if (isShift){
             mGoogleMap.addPolyline((new PolylineOptions())
-                    .add(currentLatLng, previosLatLng).width(5).color(Color.BLUE)
+                    .add(currentLatLng, previosLatLng).width(15).color(Color.BLUE)
                     .geodesic(true));
         }
         //addMarker(currentLatLng);
@@ -265,6 +311,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 Toast.makeText(MainActivity.this, "Swipe full to LEFT to stop SHIFT", Toast.LENGTH_SHORT).show();
             } else {
                 isShift = false;
+                stopSHIFT();
                 frame = (FrameLayout) findViewById(R.id.frameActivity);
                 li = LayoutInflater.from(MainActivity.this);
                 params = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
@@ -278,23 +325,17 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
+    private void stopSHIFT() {
+        LatLng currentLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+        addMarker(currentLatLng);
+
+    }
+
     private void startSHIFT() {
         mLastLocation = LocationServices.FusedLocationApi
                 .getLastLocation(mGoogleApiClient);
         LatLng currentLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
         addMarker(currentLatLng);
-
-        /*Criteria criteria = new Criteria();
-        String bestProvider = locationManager.getBestProvider(criteria, false);
-        locationManager.requestLocationUpdates(bestProvider, 60000, 1, (android.location.LocationListener) this);
-        Location location = locationManager.getLastKnownLocation(bestProvider);*/
-
-
-
-    }
-    protected void startLocationUpdates() {
-        LocationServices.FusedLocationApi.requestLocationUpdates(
-                mGoogleApiClient, mLocationRequest, this);
     }
 }
 
