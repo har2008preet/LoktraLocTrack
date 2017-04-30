@@ -1,14 +1,13 @@
 package com.cube.android.loktraloctrack;
 
 import android.Manifest;
-import android.content.pm.PackageManager;
+import android.content.Context;
+import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -19,8 +18,6 @@ import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.PendingResult;
-import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
@@ -28,7 +25,6 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -39,8 +35,6 @@ import java.util.Date;
 
 import permissions.dispatcher.NeedsPermission;
 import permissions.dispatcher.RuntimePermissions;
-
-import static android.location.LocationManager.GPS_PROVIDER;
 
 @RuntimePermissions
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback,
@@ -66,6 +60,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     FrameLayout frame;
     LayoutInflater li;
     FrameLayout.LayoutParams params;
+    LocationManager locationManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,25 +73,24 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         setSwipeBar();
 
 
-
     }
 
     private void setSwipeBar() {
-        frame = (FrameLayout)findViewById(R.id.frameActivity);
+        frame = (FrameLayout) findViewById(R.id.frameActivity);
         li = LayoutInflater.from(this);
-        params = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM| Gravity.CENTER_HORIZONTAL);
-        params.setMargins(60,0,60,60);
+        params = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        params.setMargins(60, 0, 60, 60);
         SeekBar seekBar;
-        if (!isShift){
+        if (!isShift) {
             View view = li.inflate(R.layout.swipe_bar_start_shift, frame, false);
             view.setLayoutParams(params);
             frame.addView(view);
-            seekBar = (SeekBar)view.findViewById(R.id.seekbar);
-        }else {
+            seekBar = (SeekBar) view.findViewById(R.id.seekbar);
+        } else {
             View view = li.inflate(R.layout.swipe_bar_stop_swift, frame, false);
             view.setLayoutParams(params);
             frame.addView(view);
-            seekBar = (SeekBar)view.findViewById(R.id.seekbar);
+            seekBar = (SeekBar) view.findViewById(R.id.seekbar);
         }
         seekBar.setOnSeekBarChangeListener(this);
     }
@@ -106,6 +100,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (googleMap == null) {
             googleMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(
                     R.id.map));
+            locationManager= (LocationManager)this.getSystemService(Context.LOCATION_SERVICE);
             googleMap.getMapAsync(this);
 
             // check if map is created successfully or not
@@ -134,17 +129,19 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mGoogleApiClient.disconnect();
     }
 
+    @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     @Override
     protected void onResume() {
         super.onResume();
         /*initilizeMap();*/
         mGoogleApiClient.connect();
+
     }
 
     @Override
     public void onMapReady(GoogleMap map) {
-        mGoogleMap=map;
-        MainActivityPermissionsDispatcher.createMapWithCheck(this,mGoogleMap);
+        mGoogleMap = map;
+        MainActivityPermissionsDispatcher.createMapWithCheck(this, mGoogleMap);
     }
 
     @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -155,8 +152,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         LocationManager locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
     }
+
     protected void createLocationRequest() {
         mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(6000);
+        mLocationRequest.setFastestInterval(1000);
+        //mLocationRequest.setSmallestDisplacement(10);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
     }
 
@@ -174,12 +175,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onLocationChanged(Location location) {
         mLastLocation = LocationServices.FusedLocationApi
-                .getLastLocation(mGoogleApiClient);;
+                .getLastLocation(mGoogleApiClient);
         mLastUpdateTime = DateFormat.getTimeInstance().format(new Date());
 
         //Toast.makeText(this, "Location changed", Toast.LENGTH_SHORT).show();
         Log.wtf(TAG, "Location changed");
         LatLng currentLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+        if (isShift){
+            addMarker(currentLatLng);
+        }
         //addMarker(currentLatLng);
 
         mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 16));
@@ -197,8 +201,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     public void onConnected(Bundle bundle) {
-            LocationServices.FusedLocationApi.requestLocationUpdates(
-                    mGoogleApiClient, mLocationRequest, this);
+        LocationServices.FusedLocationApi.requestLocationUpdates(
+                mGoogleApiClient, mLocationRequest, this);
 
     }
 
@@ -211,12 +215,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
 
     }
+
     @Override
     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-        if(seekBar.getProgress()<=5){
+        if (seekBar.getProgress() <= 5) {
             seekBar.setProgress(5);
         }
-        if(seekBar.getProgress()>=95){
+        if (seekBar.getProgress() >= 95) {
             seekBar.setProgress(95);
         }
     }
@@ -233,8 +238,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 seekBar.setProgress(5);
                 Toast.makeText(MainActivity.this, "Swipe full to Right to start SHIFT", Toast.LENGTH_SHORT).show();
             } else {
-                startSHIFT();
                 isShift = true;
+                startSHIFT();
                 frame = (FrameLayout) findViewById(R.id.frameActivity);
                 li = LayoutInflater.from(MainActivity.this);
                 params = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
@@ -242,7 +247,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 View view = li.inflate(R.layout.swipe_bar_stop_swift, frame, false);
                 view.setLayoutParams(params);
                 frame.addView(view);
-                SeekBar seekBar1 = (SeekBar)view.findViewById(R.id.seekbar);
+                SeekBar seekBar1 = (SeekBar) view.findViewById(R.id.seekbar);
                 seekBar1.setOnSeekBarChangeListener(this);
             }
         } else {
@@ -258,7 +263,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 View view = li.inflate(R.layout.swipe_bar_start_shift, frame, false);
                 view.setLayoutParams(params);
                 frame.addView(view);
-                seekBar = (SeekBar)view.findViewById(R.id.seekbar);
+                seekBar = (SeekBar) view.findViewById(R.id.seekbar);
             }
             seekBar.setOnSeekBarChangeListener(this);
         }
@@ -270,10 +275,17 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         LatLng currentLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
         addMarker(currentLatLng);
 
-        /*while(isShift) {
-            createLocationRequestInterval();
-        }*/
+        /*Criteria criteria = new Criteria();
+        String bestProvider = locationManager.getBestProvider(criteria, false);
+        locationManager.requestLocationUpdates(bestProvider, 60000, 1, (android.location.LocationListener) this);
+        Location location = locationManager.getLastKnownLocation(bestProvider);*/
 
+
+
+    }
+    protected void startLocationUpdates() {
+        LocationServices.FusedLocationApi.requestLocationUpdates(
+                mGoogleApiClient, mLocationRequest, this);
     }
 }
 
