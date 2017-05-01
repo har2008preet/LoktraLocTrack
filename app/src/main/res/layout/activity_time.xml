@@ -2,7 +2,9 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="25dp"
+    android:layout_marginLeft="25dp"
+    android:layout_marginRight="25dp"
+    android:layout_marginTop="55dp"
     android:background="@drawable/rounded_corner_white"
     android:orientation="horizontal"
     android:padding="25dp">
@@ -11,10 +13,14 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:text="TOTAL SHIFT TIME:" />
+        android:text="TOTAL SHIFT TIME:"
+        android:textStyle="bold" />
 
     <TextView
+        android:id="@+id/disp_time"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="2:30:12" />
+        android:text="2:30:12"
+        android:textColor="#41b613"
+        android:textStyle="bold|italic" />
 </LinearLayout>

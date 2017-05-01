@@ -13,9 +13,8 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.FrameLayout;
-import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.SeekBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -34,6 +33,7 @@ import com.google.android.gms.maps.model.PolylineOptions;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 import permissions.dispatcher.NeedsPermission;
 import permissions.dispatcher.RuntimePermissions;
@@ -43,8 +43,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener, SeekBar.OnSeekBarChangeListener {
 
-    private static final int MY_PERMISSIONS_LOCATION = 100;
-    private static final int REQUEST_PERMISSION_SETTING = 101;
     private static final String TAG = "LocationActivity";
     GoogleMap mGoogleMap;
     String mLastUpdateTime;
@@ -52,26 +50,23 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     android.location.LocationListener mLocationListener;
     GoogleApiClient mGoogleApiClient;
     Location mLastLocation;
-    Marker mCurrLocationMarker;
     FrameLayout frame;
     LayoutInflater li;
     FrameLayout.LayoutParams params;
     LocationManager locationManager;
-    LinearLayout timeLayout;
-    private ProgressBar progress;
+    View dispView;
     private SupportMapFragment googleMap;
-    private boolean sentToSettings = false;
-    private boolean isConnected;
     private ArrayList<LatLng> locations = new ArrayList<>();
     private boolean isShift;
     private int onPause;
+    private long startTime;
+    private long stopTime;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        progress = (ProgressBar) findViewById(R.id.progressBar1);
         buildGoogleApiClient();
 
         initilizeMap();
@@ -105,7 +100,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (googleMap == null) {
             googleMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(
                     R.id.map));
-            locationManager= (LocationManager)this.getSystemService(Context.LOCATION_SERVICE);
+            locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
             googleMap.getMapAsync(this);
 
             // check if map is created successfully or not
@@ -136,31 +131,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     }
 
-    /*@NonNull
-    private android.location.LocationListener getLocationListener() {
-        return new android.location.LocationListener() {
-            @Override
-            public void onLocationChanged(Location location) {
-                LatLng newLatlng = new LatLng(location.getLatitude(), location.getLongitude());
-                locations.add(newLatlng);
-            }
-
-            @Override
-            public void onStatusChanged(String provider, int status, Bundle extras) {
-
-            }
-
-            @Override
-            public void onProviderEnabled(String provider) {
-
-            }
-
-            @Override
-            public void onProviderDisabled(String provider) {
-
-            }
-        };
-    }*/
 
     @Override
     public void onStop() {
@@ -256,6 +226,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         long atTime = mLastLocation.getTime();
         mLastUpdateTime = DateFormat.getTimeInstance().format(new Date(atTime));
         mapMarker.setTitle(mLastUpdateTime);
+        if (startTime == 0) {
+            startTime = atTime;
+        } else {
+            stopTime = atTime;
+        }
+
     }
 
     @Override
@@ -342,19 +318,23 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         LatLng currentLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
         addMarker(currentLatLng);
 
-        /*locationManager.removeUpdates(mLocationListener);
-        locationManager=null;*/
-        /*locationManager.removeUpdates(mLocationListener);
-        mLocationListener = null;
-        mGoogleApiClient.disconnect();*/
-        showTime();
+        long tDiff = stopTime - startTime;
+        String hms = String.format("%02d:%02d:%02d", TimeUnit.MILLISECONDS.toHours(tDiff),
+                TimeUnit.MILLISECONDS.toMinutes(tDiff) - TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(tDiff)),
+                TimeUnit.MILLISECONDS.toSeconds(tDiff) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(tDiff)));
+        startTime = 0;
+        stopTime = 0;
+        showTime(hms);
+
     }
 
-    private void showTime() {
+    private void showTime(String hms) {
         frame = (FrameLayout) findViewById(R.id.frameActivity);
         li = LayoutInflater.from(this);
-        View view = li.inflate(R.layout.activity_time, frame, false);
-        frame.addView(view);
+        dispView = li.inflate(R.layout.activity_time, frame, false);
+        TextView dispTime = (TextView) dispView.findViewById(R.id.disp_time);
+        dispTime.setText(hms);
+        frame.addView(dispView);
 
     }
 
@@ -367,9 +347,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             mLocationListener = myLocationListener;
         }
         frame = (FrameLayout) findViewById(R.id.frameActivity);
-        li = LayoutInflater.from(this);
-        View view = li.inflate(R.layout.activity_time, frame, false);
-        frame.removeView(view);
+        frame.removeView(dispView);
 
         mLastLocation = LocationServices.FusedLocationApi
                 .getLastLocation(mGoogleApiClient);

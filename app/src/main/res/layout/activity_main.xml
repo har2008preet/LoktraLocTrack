@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     tools:context="com.cube.android.loktraloctrack.MainActivity">
 
+    <include layout="@layout/activity_toolbar" />
     <FrameLayout
         android:id="@+id/frameActivity"
         android:layout_width="match_parent"
@@ -29,4 +30,4 @@
 
     </FrameLayout>
 
-</RelativeLayout>
+</LinearLayout>
