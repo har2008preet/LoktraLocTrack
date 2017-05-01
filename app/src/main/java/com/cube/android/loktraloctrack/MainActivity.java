@@ -13,13 +13,13 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -40,7 +40,6 @@ import permissions.dispatcher.RuntimePermissions;
 
 @RuntimePermissions
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback,
-        LocationListener,
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener, SeekBar.OnSeekBarChangeListener {
 
@@ -50,6 +49,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     GoogleMap mGoogleMap;
     String mLastUpdateTime;
     LocationRequest mLocationRequest;
+    android.location.LocationListener mLocationListener;
     GoogleApiClient mGoogleApiClient;
     Location mLastLocation;
     Marker mCurrLocationMarker;
@@ -57,12 +57,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     LayoutInflater li;
     FrameLayout.LayoutParams params;
     LocationManager locationManager;
+    LinearLayout timeLayout;
     private ProgressBar progress;
     private SupportMapFragment googleMap;
     private boolean sentToSettings = false;
     private boolean isConnected;
     private ArrayList<LatLng> locations = new ArrayList<>();
     private boolean isShift;
+    private int onPause;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -123,16 +125,18 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onPause() {
         super.onPause();
+        Log.wtf(TAG, "onPause");
+        onPause = 1;
+        if (isShift) {
+            locations.add(new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()));
+            //android.location.LocationListener locationListener = getLocationListener();
 
-        locations.add(new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()));
-        Toast.makeText(this, "onPause() called", Toast.LENGTH_SHORT).show();
-        android.location.LocationListener locationListener = getLocationListener();
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, mLocationListener);  // I am using Fake GPS app for gps movement emulator
+        }
 
-        LocationManager locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
     }
 
-    @NonNull
+    /*@NonNull
     private android.location.LocationListener getLocationListener() {
         return new android.location.LocationListener() {
             @Override
@@ -156,7 +160,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             }
         };
-    }
+    }*/
 
     @Override
     public void onStop() {
@@ -169,6 +173,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     protected void onResume() {
         super.onResume();
         /*initilizeMap();*/
+        onPause = 0;
         mGoogleApiClient.connect();
 
         if (!locations.isEmpty()) {
@@ -195,7 +200,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         map.setMapType(GoogleMap.MAP_TYPE_HYBRID);
         map.setMyLocationEnabled(true);
 
-        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
     }
 
@@ -205,6 +209,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mLocationRequest.setFastestInterval(1000);
         //mLocationRequest.setSmallestDisplacement(10);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+
     }
 
     protected synchronized void buildGoogleApiClient() {
@@ -218,7 +223,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     }
 
-    @Override
+    /*@Override
     public void onLocationChanged(Location location) {
         Location lastLocation;
         LatLng previosLatLng = null;
@@ -242,7 +247,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         //addMarker(currentLatLng);
 
         mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 16));
-    }
+    }*/
 
     private void addMarker(LatLng currentLatLng) {
         MarkerOptions options = new MarkerOptions();
@@ -253,11 +258,19 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mapMarker.setTitle(mLastUpdateTime);
     }
 
-
     @Override
     public void onConnected(Bundle bundle) {
-        LocationServices.FusedLocationApi.requestLocationUpdates(
-                mGoogleApiClient, mLocationRequest, this);
+        MyLocationListener myLocationListener = new MyLocationListener();
+        mLocationListener = myLocationListener;
+
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, mLocationListener);
+        mLastLocation = LocationServices.FusedLocationApi
+                .getLastLocation(mGoogleApiClient);
+
+        mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()), 16));
+        if (isShift) {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, mLocationListener);  // I am using Fake GPS app for gps movement emulator
+        }
 
     }
 
@@ -329,14 +342,90 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         LatLng currentLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
         addMarker(currentLatLng);
 
+        /*locationManager.removeUpdates(mLocationListener);
+        locationManager=null;*/
+        /*locationManager.removeUpdates(mLocationListener);
+        mLocationListener = null;
+        mGoogleApiClient.disconnect();*/
+        showTime();
+    }
+
+    private void showTime() {
+        frame = (FrameLayout) findViewById(R.id.frameActivity);
+        li = LayoutInflater.from(this);
+        View view = li.inflate(R.layout.activity_time, frame, false);
+        frame.addView(view);
+
     }
 
     private void startSHIFT() {
+        if (!mGoogleApiClient.isConnected()) {
+            mGoogleApiClient.connect();
+        }
+        if (mLocationListener == null) {
+            MyLocationListener myLocationListener = new MyLocationListener();
+            mLocationListener = myLocationListener;
+        }
+        frame = (FrameLayout) findViewById(R.id.frameActivity);
+        li = LayoutInflater.from(this);
+        View view = li.inflate(R.layout.activity_time, frame, false);
+        frame.removeView(view);
+
         mLastLocation = LocationServices.FusedLocationApi
                 .getLastLocation(mGoogleApiClient);
         LatLng currentLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+
         addMarker(currentLatLng);
+
     }
+
+    public class MyLocationListener implements android.location.LocationListener {
+
+        public void onLocationChanged(final Location location) {
+            if (onPause == 1) {
+                LatLng newLatlng = new LatLng(location.getLatitude(), location.getLongitude());
+                locations.add(newLatlng);
+            } else {
+                Location lastLocation;
+                LatLng previosLatLng = null;
+                if (isShift) {
+                    lastLocation = mLastLocation;
+                    previosLatLng = new LatLng(lastLocation.getLatitude(), lastLocation.getLongitude());
+                    mLastLocation = LocationServices.FusedLocationApi
+                            .getLastLocation(mGoogleApiClient);
+                    mLastUpdateTime = DateFormat.getTimeInstance().format(new Date());
+
+                    //Toast.makeText(this, "Location changed", Toast.LENGTH_SHORT).show();
+                    Log.wtf(TAG, "Location changed");
+
+                    LatLng currentLatLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+                    mGoogleMap.addPolyline((new PolylineOptions())
+                            .add(currentLatLng, previosLatLng).width(15).color(Color.BLUE)
+                            .geodesic(true));
+
+                    mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 16));
+                }
+
+                //addMarker(currentLatLng);
+            }
+        }
+
+        public void onProviderDisabled(String provider) {
+            Toast.makeText(getApplicationContext(), "Gps Disabled", Toast.LENGTH_SHORT).show();
+        }
+
+
+        public void onProviderEnabled(String provider) {
+            Toast.makeText(getApplicationContext(), "Gps Enabled", Toast.LENGTH_SHORT).show();
+        }
+
+
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+
+        }
+
+    }
+
 }
 
 
