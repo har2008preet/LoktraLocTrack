@@ -340,7 +340,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     }
 
-    @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     private void startSHIFT() {
         if (!mGoogleApiClient.isConnected()) {
             mGoogleApiClient.connect();
