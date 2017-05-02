@@ -117,6 +117,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onStart();
     }
 
+    @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     @Override
     protected void onPause() {
         super.onPause();
@@ -234,6 +235,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     }
 
+    @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     @Override
     public void onConnected(Bundle bundle) {
         MyLocationListener myLocationListener = new MyLocationListener();
@@ -338,6 +340,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     }
 
+    @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     private void startSHIFT() {
         if (!mGoogleApiClient.isConnected()) {
             mGoogleApiClient.connect();
